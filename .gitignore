@@ -1,0 +1,74 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+*.egg
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+data/logs/
+
+# Local databases
+data/databases/*.db
+data/databases/*.sqlite
+
+# Environment variables
+.env
+.env.local
+config/*.json
+config/*.yaml
+config/*.yml
+
+# Exports
+data/exports/
+
+# ML Models (unless you want to track them)
+models/*.h5
+models/*.pkl
+models/*.pth
+models/*.onnx
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini

@@ -1,0 +1,67 @@
+# STEM DREAM Aquaponics Control System
+# Raspberry Pi Full Deployment Requirements
+# Compatible with Python 3.9-3.14 on Raspberry Pi OS
+
+# === WEB FRAMEWORK (Required) ===
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+websockets>=12.0
+jinja2>=3.1.0
+
+# === SENSOR INTERFACES (Required for hardware) ===
+smbus2>=0.4.0
+atlas-i2c>=0.3.1
+gpiozero>=2.0.0
+
+# === BASIC UTILITIES (Required) ===
+numpy>=1.24.0
+pillow>=10.0.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+apscheduler>=3.10.0
+
+# === CAMERA AND COMPUTER VISION ===
+# Install these if using Pi Camera Module
+picamera2>=0.3.0
+opencv-python>=4.8.0
+
+# === MACHINE LEARNING ===
+# Install if using plant health detection
+# Note: Use tflite-runtime OR tensorflow, not both
+tflite-runtime>=2.14.0
+# tensorflow>=2.14.0  # Alternative to tflite-runtime (larger, slower)
+
+# === LLM INTEGRATION (Optional) ===
+# Uncomment the one(s) you want to use:
+# openai>=1.10.0      # For OpenAI GPT
+# anthropic>=0.16.0   # For Claude
+# Note: requests already installed above (needed for Ollama)
+
+# === DATABASE (Optional) ===
+# Uncomment if using InfluxDB time-series database:
+# influxdb-client>=1.39.0
+
+# === CONTROL SYSTEMS (Optional) ===
+# Uncomment if implementing PID control loops:
+# simple-pid>=2.0.0
+
+# === ALERTS/NOTIFICATIONS (Optional) ===
+# Uncomment if using email alerts:
+# yagmail>=0.15.0
+
+# Uncomment if using SMS alerts via Twilio:
+# twilio>=8.13.0
+
+# === NOTES ===
+# 1. Install system dependencies first:
+#    sudo apt install -y python3-opencv python3-picamera2 i2c-tools
+#
+# 2. Enable hardware interfaces:
+#    sudo raspi-config -> Interface Options -> Enable I2C, 1-Wire, Camera
+#
+# 3. For faster installs on Pi, use apt where available:
+#    sudo apt install -y python3-numpy python3-pil python3-requests
+#    Then: pip install -r requirements-raspi.txt
+#
+# 4. Recommended Python version: 3.11 or 3.12
+#    (Default on Raspberry Pi OS Bookworm)

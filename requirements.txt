@@ -1,0 +1,48 @@
+# STEM DREAM Aquaponics Control System
+# Python Dependencies - Compatible with Python 3.9-3.14
+
+# === REQUIRED FOR ALL PLATFORMS ===
+
+# Web Framework
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+websockets>=12.0
+jinja2>=3.1.0
+
+# Basic utilities
+numpy>=1.24.0
+pillow>=10.0.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# Scheduling
+apscheduler>=3.10.0
+
+
+# === OPTIONAL - Uncomment as needed ===
+
+# Sensor Interfaces (Only on Raspberry Pi)
+# smbus2>=0.4.0
+# atlas-i2c>=0.3.1
+# gpiozero>=2.0.0
+
+# Camera and Computer Vision (Only with camera hardware)
+# picamera2>=0.3.0
+# opencv-python>=4.8.0
+
+# Machine Learning (Only if using plant detection)
+# tflite-runtime>=2.14.0
+
+# LLM Integration (Choose what you need)
+# openai>=1.10.0
+# anthropic>=0.16.0
+
+# Database (Only if using InfluxDB)
+# influxdb-client>=1.39.0
+
+# Control Systems (Only if implementing PID)
+# simple-pid>=2.0.0
+
+# Alerts/Notifications (Only if using alerts)
+# yagmail>=0.15.0
+# twilio>=8.13.0
