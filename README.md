@@ -1,4 +1,4 @@
-# ðŸŒ± STEM DREAM Aquaponics Control System
+# 🌱 STEM DREAM Aquaponics Control System
 
 **AI-Enhanced Smart Hydroponics/Aquaponics with Machine Learning and LLM Integration**
 
@@ -43,7 +43,7 @@ A complete Raspberry Pi 5-based monitoring and control system featuring:
    - Alert management
    - Equipment control interface
 
-## ðŸš€ Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 
@@ -268,4 +268,4 @@ This is part of the STEM DREAM educational aquaponics initiative, teaching integ
 
 **Built with ðŸ’š for education and sustainability**
 
-ðŸŒ± Grow Food. Learn STEM. Change the World. ðŸŸ
+🌱 Grow Food. Learn STEM. Change the World. ðŸŸ
