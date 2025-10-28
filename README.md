@@ -11,7 +11,7 @@ A complete Raspberry Pi 5-based monitoring and control system featuring:
 - Alert system (email, SMS, dashboard notifications)
 - Complete data logging and historical analysis
 
-## ðŸ“‹ Quick Overview
+## 📋 Quick Overview
 
 ### What This System Does
 
@@ -80,37 +80,37 @@ Navigate to http://raspberrypi.local:8000
 
 **For complete setup instructions, see [SETUP_GUIDE.md](SETUP_GUIDE.md)**
 
-## ðŸ“ Project Structure
+## 📁 Project Structure
 
 ```
 hydroponics_system/
-â”œâ”€â”€ main.py                 # FastAPI application & WebSocket server
-â”œâ”€â”€ sensors.py              # Atlas Scientific & other sensor interfaces
-â”œâ”€â”€ ml_vision.py           # TensorFlow Lite plant health detection
-â”œâ”€â”€ llm_interface.py       # LLM integration (OpenAI/Claude/Ollama)
-â”œâ”€â”€ database.py            # SQLite/InfluxDB data logging
-â”œâ”€â”€ alerts.py              # Alert monitoring & notifications
-â”œâ”€â”€ config.py              # System configuration
-â”œâ”€â”€ requirements.txt       # Python dependencies
-â”œâ”€â”€ SETUP_GUIDE.md        # Complete installation guide
-â”œâ”€â”€ templates/
-â”‚   â””â”€â”€ dashboard.html    # Web dashboard UI
-â”œâ”€â”€ models/               # ML models directory
-â”‚   â””â”€â”€ plant_disease.tflite
-â””â”€â”€ static/               # CSS/JS assets (optional)
+├── main.py                 # FastAPI application & WebSocket server
+├── sensors.py              # Atlas Scientific & other sensor interfaces
+├── ml_vision.py           # TensorFlow Lite plant health detection
+├── llm_interface.py       # LLM integration (OpenAI/Claude/Ollama)
+├── database.py            # SQLite/InfluxDB data logging
+├── alerts.py              # Alert monitoring & notifications
+├── config.py              # System configuration
+├── requirements.txt       # Python dependencies
+├── SETUP_GUIDE.md        # Complete installation guide
+├── templates/
+│   └── dashboard.html    # Web dashboard UI
+├── models/               # ML models directory
+│   └── plant_disease.tflite
+└── static/               # CSS/JS assets (optional)
 ```
 
-## ðŸŽ¯ Key Features
+## 🔬 Key Features
 
 ### Sensor Capabilities
 
 | Sensor | Measures | Range | Accuracy |
 |--------|----------|-------|----------|
-| pH | Acidity/Alkalinity | 0-14 | Â±0.002 |
-| EC | Nutrient Concentration | 0.07-10 mS/cm | Â±2% |
-| DO | Dissolved Oxygen | 0-100 mg/L | Â±0.05 mg/L |
-| Temp | Water Temperature | -55 to 125Â°C | Â±0.5Â°C |
-| Level | Water Level | 2-400 cm | Â±1 cm |
+| pH | Acidity/Alkalinity | 0-14 | ±0.002 |
+| EC | Nutrient Concentration | 0.07-10 mS/cm | ±2% |
+| DO | Dissolved Oxygen | 0-100 mg/L | ±0.05 mg/L |
+| Temp | Water Temperature | -55 to 125°C | ±0.5°C |
+| Level | Water Level | 2-400 cm | ±1 cm |
 
 ### ML Plant Detection
 
@@ -138,7 +138,7 @@ hydroponics_system/
 - DO-based emergency aeration
 - pH/EC adjustment scheduling (with dosing pumps)
 
-## ðŸ“Š Dashboard Screenshots
+## 🖥️ Dashboard Screenshots
 
 *[Add screenshots after deployment]*
 
@@ -148,7 +148,7 @@ hydroponics_system/
 - Plant health analysis results
 - Interactive LLM chat interface
 
-## ðŸ”§ Configuration Examples
+## 🔧 Configuration Examples
 
 ### Hydroponics (Lettuce)
 
@@ -171,7 +171,7 @@ temp_min = 10
 temp_max = 15
 ```
 
-## ðŸš¨ Alert Thresholds
+## 🚨 Alert Thresholds
 
 Alerts trigger automatically when parameters exceed thresholds:
 
@@ -179,7 +179,7 @@ Alerts trigger automatically when parameters exceed thresholds:
 - **Warning** - Attention needed (dashboard notification)
 - **Info** - FYI (logged only)
 
-## ðŸ“ˆ Data Logging
+## 📊 Data Logging
 
 **Sensor readings logged every 5 minutes by default**
 
@@ -191,7 +191,7 @@ Data stored in:
 
 **Export:** CSV export via API
 
-## ðŸ” Security Notes
+## 🔒 Security Notes
 
 **Production Deployment:**
 
@@ -201,7 +201,7 @@ Data stored in:
 4. Restrict network access (firewall)
 5. Regular security updates
 
-## ðŸ› Troubleshooting
+## 🛠️ Troubleshooting
 
 **Sensors not detected:**
 ```bash
@@ -220,7 +220,7 @@ sudo journalctl -u hydroponics.service -f
 
 **See [SETUP_GUIDE.md](SETUP_GUIDE.md) for complete troubleshooting**
 
-## ðŸ“š Educational Use
+## 📖 Educational Use
 
 This system is designed for STEM education:
 
@@ -231,7 +231,7 @@ This system is designed for STEM education:
 
 **Curriculum Integration:** See project docs for lesson plans
 
-## ðŸ¤ Contributing
+## 🤝 Contributing
 
 This is an open-source educational project!
 
@@ -240,11 +240,11 @@ This is an open-source educational project!
 - Submit pull requests
 - Share your build!
 
-## ðŸ“„ License
+## 📝 License
 
 MIT License - See LICENSE file
 
-## ðŸ™ Acknowledgments
+## 🏆 Acknowledgments
 
 - Atlas Scientific for excellent sensor documentation
 - Raspberry Pi Foundation
@@ -252,13 +252,13 @@ MIT License - See LICENSE file
 - OpenAI/Anthropic for LLM APIs
 - Aquaponics community for knowledge sharing
 
-## ðŸ“ž Support
+## 📧 Support
 
 - Documentation: See SETUP_GUIDE.md
 - Issues: GitHub issues page
 - Community: [Add forum/Discord link]
 
-## ðŸŽ“ STEM DREAM Project
+## 🌍 STEM DREAM Project
 
 This is part of the STEM DREAM educational aquaponics initiative, teaching integrated STEM through real-world food production systems.
 
@@ -266,6 +266,6 @@ This is part of the STEM DREAM educational aquaponics initiative, teaching integ
 
 ---
 
-**Built with ðŸ’š for education and sustainability**
+**Built with 💚 for education and sustainability**
 
-🌱 Grow Food. Learn STEM. Change the World. ðŸŸ
+🌱 Grow Food. Learn STEM. Change the World. 🌍
