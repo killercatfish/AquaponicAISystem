@@ -72,3 +72,6 @@ htmlcov/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+# Logs - ignore log files but keep directory
+data/logs/*.log
+!data/logs/.gitkeep
