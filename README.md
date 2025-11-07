@@ -201,6 +201,21 @@ Data stored in:
 4. Restrict network access (firewall)
 5. Regular security updates
 
+## 🌐 Remote Access
+
+The system can be accessed remotely from anywhere via Tailscale VPN:
+
+**Dashboard URL:** `http://100.117.109.76:8000`
+
+**Setup Instructions:** See [docs/TAILSCALE_REMOTE_ACCESS.md](docs/TAILSCALE_REMOTE_ACCESS.md)
+
+**Works on:**
+- Mac/PC (any browser)
+- iPhone/Android (Safari/Chrome)
+- Any device with Tailscale installed
+
+**Security:** Military-grade WireGuard encryption, no port forwarding required.
+
 ## 🛠️ Troubleshooting
 
 **Sensors not detected:**
