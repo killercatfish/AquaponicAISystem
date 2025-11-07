@@ -249,6 +249,105 @@
         .icon-robot::before { content: "🤖 "; }
         .icon-camera::before { content: "📷 "; }
         .icon-refresh::before { content: "🔄 "; }
+        /* AKBS Knowledge Integration Styles */
+        .info-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+
+        .info-btn:hover {
+            background: #45a049;
+        }
+
+        .knowledge-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+        }
+
+        .knowledge-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 800px;
+            border-radius: 10px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .close-modal {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 20px;
+        }
+
+        .close-modal:hover {
+            color: #000;
+        }
+
+        .knowledge-result {
+            background: #f9f9f9;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #4CAF50;
+            border-radius: 4px;
+        }
+
+        .knowledge-source {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .knowledge-relevance {
+            display: inline-block;
+            background: #4CAF50;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            margin-left: 5px;
+        }
+
+        .knowledge-content-text {
+            color: #333;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .system-analysis-btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 20px 0;
+            display: inline-block;
+        }
+
+        .system-analysis-btn:hover {
+            background: #1976D2;
+}
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -271,15 +370,24 @@
                 <h2><span class="icon-water"></span>Water Quality</h2>
                 <div class="sensor-reading">
                     <span class="sensor-label">pH</span>
-                    <span class="sensor-value" id="ph-value">--</span>
+                    <span>
+                        <span class="sensor-value" id="ph-value">--</span>
+                        <button class="info-btn" onclick="showKnowledge('ph')">ℹ️</button>
+                    </span>
                 </div>
                 <div class="sensor-reading">
                     <span class="sensor-label">EC (mS/cm)</span>
-                    <span class="sensor-value" id="ec-value">--</span>
-                </div>
+                    <span>
+                        <span class="sensor-value" id="ec-value">--</span>
+                        <button class="info-btn" onclick="showKnowledge('ec')">ℹ️</button>
+                    </span>
+                </div>                
                 <div class="sensor-reading">
                     <span class="sensor-label">DO (mg/L)</span>
-                    <span class="sensor-value" id="do-value">--</span>
+                    <span>
+                        <span class="sensor-value" id="do-value">--</span>
+                        <button class="info-btn" onclick="showKnowledge('do')">ℹ️</button>
+                    </span>
                 </div>
             </div>
             
@@ -288,7 +396,10 @@
                 <h2><span class="icon-temp"></span>Temperature</h2>
                 <div class="sensor-reading">
                     <span class="sensor-label">Reservoir</span>
-                    <span class="sensor-value" id="temp-res-value">--</span>
+                    <span>
+                        <span class="sensor-value" id="temp-res-value">--</span>
+                        <button class="info-btn" onclick="showKnowledge('temperature')">ℹ️</button>
+                    </span>
                 </div>
                 <div class="sensor-reading">
                     <span class="sensor-label">Fish Tank</span>
@@ -296,7 +407,10 @@
                 </div>
                 <div class="sensor-reading">
                     <span class="sensor-label">Water Level</span>
-                    <span class="sensor-value" id="water-level-value">--</span>
+                    <span>
+                        <span class="sensor-value" id="water-level-value">--</span>
+                        <button class="info-btn" onclick="showKnowledge('water_level')">ℹ️</button>
+                    </span>
                 </div>
             </div>
             
@@ -322,6 +436,25 @@
             </div>
         </div>
         
+        <!-- System Analysis Button -->
+        <div style="text-align: center; margin: 20px 0;">
+            <button class="system-analysis-btn" onclick="showSystemAnalysis()">
+                🧠 Analyze Entire System with AI Knowledge Base
+            </button>
+        </div>
+
+        <!-- Find this section around line 280 -->
+        <div style="text-align: center; margin: 20px 0;">
+            <button class="system-analysis-btn" onclick="showSystemAnalysis()">
+                🧠 Analyze Entire System with AI Knowledge Base
+            </button>
+            
+            <!-- ADD THIS NEW BUTTON -->
+            <button class="system-analysis-btn" style="background: #9C27B0; margin-left: 10px;" onclick="showPredictiveAnalysis()">
+                🔮 Predictive Analysis (Trends + Forecasting)
+            </button>
+        </div>
+
         <!-- Plant Health Card -->
         <div class="card">
             <h2><span class="icon-plant"></span>Plant Health</h2>
@@ -379,6 +512,15 @@
         </div>
     </div>
     
+    <!-- AKBS Knowledge Modal -->
+    <div id="knowledgeModal" class="knowledge-modal">
+        <div class="knowledge-content">
+            <span class="close-modal" onclick="closeKnowledge()">&times;</span>
+            <h2 id="knowledge-title">Knowledge Base</h2>
+            <div id="knowledge-results">Loading...</div>
+        </div>
+    </div>
+
     <script>
         // WebSocket connection for real-time updates
         let ws;
@@ -628,6 +770,277 @@
             initChart();
             refreshNow();
         };
+
+        // ============================================================
+        // AKBS Knowledge Integration Functions
+        // ============================================================
+
+        async function showKnowledge(parameter) {
+            const modal = document.getElementById('knowledgeModal');
+            const title = document.getElementById('knowledge-title');
+            const results = document.getElementById('knowledge-results');
+            
+            modal.style.display = 'block';
+            
+            const valueElement = document.getElementById(
+                parameter === 'ph' ? 'ph-value' :
+                parameter === 'ec' ? 'ec-value' :
+                parameter === 'do' ? 'do-value' :
+                parameter === 'temperature' ? 'temp-res-value' :
+                'water-level-value'
+            );
+            
+            const currentValue = valueElement ? valueElement.textContent : '--';
+            
+            title.innerHTML = `🧠 Intelligent Analysis: ${parameter.toUpperCase()} <span style="color: #666; font-size: 16px;">(Current: ${currentValue})</span>`;
+            results.innerHTML = '<p>🔍 Analyzing your system...</p>';
+            
+            try {
+                const response = await fetch(`/api/knowledge/intelligent-analysis/${parameter}`);
+                const data = await response.json();
+                
+                const analysis = data.intelligent_analysis;
+                const textbook = data.textbook_knowledge;
+                
+                // Build intelligent analysis display
+                let html = `
+                    <div style="background: ${
+                        analysis.status === 'critical' ? '#ffebee' :
+                        analysis.status === 'warning' ? '#fff3e0' :
+                        '#e8f5e9'
+                    }; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid ${
+                        analysis.status === 'critical' ? '#f44336' :
+                        analysis.status === 'warning' ? '#ff9800' :
+                        '#4caf50'
+                    };">
+                        <h3 style="margin: 0 0 10px 0;">
+                            ${analysis.status === 'critical' ? '🚨' : 
+                            analysis.status === 'warning' ? '⚠️' : '✅'}
+                            Status: <span style="text-transform: uppercase;">${analysis.status}</span>
+                            ${analysis.urgency && analysis.urgency !== 'normal' ? 
+                            ` <span style="background: #f44336; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px;">${analysis.urgency}</span>` : ''}
+                        </h3>
+                        
+                        <p style="font-size: 16px; line-height: 1.6; margin: 10px 0;">
+                            ${analysis.explanation}
+                        </p>
+                        
+                        ${analysis.problems && analysis.problems.length > 0 ? `
+                            <div style="margin: 15px 0;">
+                                <strong>🔍 Problems Identified:</strong>
+                                <ul style="margin: 5px 0; padding-left: 20px;">
+                                    ${analysis.problems.map(p => `<li>${p}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        
+                        ${analysis.actions && analysis.actions.length > 0 ? `
+                            <div style="margin: 15px 0;">
+                                <strong>✅ Recommended Actions:</strong>
+                                <ol style="margin: 5px 0; padding-left: 20px;">
+                                    ${analysis.actions.map(a => `<li style="margin: 5px 0;">${a}</li>`).join('')}
+                                </ol>
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    <h3 style="margin-top: 30px; color: #666;">📚 Supporting Information from Knowledge Base:</h3>
+                `;
+                
+                // Add textbook context
+                if (textbook.results && textbook.results.length > 0) {
+                    textbook.results.forEach(result => {
+                        html += `
+                            <div class="knowledge-result">
+                                <div class="knowledge-source">
+                                    📄 ${result.source}
+                                    <span class="knowledge-relevance">
+                                        ${(result.relevance * 100).toFixed(0)}% relevant
+                                    </span>
+                                </div>
+                                <div class="knowledge-content-text">${result.content}</div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    html += '<p style="color: #999;">No additional textbook context found.</p>';
+                }
+                
+                results.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                results.innerHTML = `<p>❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        async function showSystemAnalysis() {
+            const modal = document.getElementById('knowledgeModal');
+            const title = document.getElementById('knowledge-title');
+            const results = document.getElementById('knowledge-results');
+            
+            // Show modal
+            modal.style.display = 'block';
+            title.innerHTML = '🧠 Complete System Analysis';
+            results.innerHTML = '<p>🔍 Analyzing all current sensor readings with knowledge base...</p>';
+            
+            try {
+                const response = await fetch('/api/knowledge/system-analysis');
+                const data = await response.json();
+                
+                if (!data.available) {
+                    results.innerHTML = '<p>⚠️ Knowledge base not available</p>';
+                    return;
+                }
+                
+                // Show query context
+                let html = `
+                    <div style="background: #e3f2fd; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+                        <strong>🔍 Query Context:</strong>
+                        <pre style="margin-top: 5px; white-space: pre-wrap;">${data.query}</pre>
+                    </div>
+                `;
+                
+                // Show results
+                if (data.results.length === 0) {
+                    html += '<p>No relevant analysis found.</p>';
+                } else {
+                    data.results.forEach((result) => {
+                        html += `
+                            <div class="knowledge-result">
+                                <div class="knowledge-source">
+                                    📄 ${result.source}
+                                    <span class="knowledge-relevance">
+                                        ${(result.relevance * 100).toFixed(0)}% relevant
+                                    </span>
+                                </div>
+                                <div class="knowledge-content-text">${result.content}</div>
+                            </div>
+                        `;
+                    });
+                }
+                
+                results.innerHTML = html;
+                
+            } catch (error) {
+                console.error('System analysis error:', error);
+                results.innerHTML = `<p>❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        function closeKnowledge() {
+            document.getElementById('knowledgeModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('knowledgeModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        });
+
+        async function showPredictiveAnalysis() {
+            const modal = document.getElementById('knowledgeModal');
+            const title = document.getElementById('knowledge-title');
+            const results = document.getElementById('knowledge-results');
+            
+            modal.style.display = 'block';
+            title.innerHTML = '🔮 Predictive Intelligence Analysis';
+            results.innerHTML = '<p>🔍 Analyzing trends and predicting future states...</p>';
+            
+            try {
+                const response = await fetch('/api/knowledge/predictive-analysis');
+                const data = await response.json();
+                
+                const trends = data.trends;
+                const correlation = data.correlation;
+                
+                let html = '';
+                
+                // Overall system state
+                html += `
+                    <div style="background: ${
+                        correlation.system_state === 'critical_cascade' ? '#ffebee' :
+                        correlation.system_state === 'temperature_oxygen_cascade' ? '#fff3e0' :
+                        correlation.system_state === 'optimal_stable' ? '#e8f5e9' :
+                        '#e3f2fd'
+                    }; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <h3>${correlation.system_state === 'optimal_stable' ? '✅' : '⚠️'} 
+                            System State: ${correlation.system_state.replace(/_/g, ' ').toUpperCase()}
+                        </h3>
+                        <p style="white-space: pre-wrap; line-height: 1.6;">${correlation.explanation}</p>
+                    </div>
+                `;
+                
+                // Individual parameter trends
+                html += '<h3>📊 Parameter Trends (24-Hour Analysis)</h3>';
+                
+                for (const [param, trend] of Object.entries(trends.trends)) {
+                    const concernColor = 
+                        trend.concern_level === 'critical' ? '#f44336' :
+                        trend.concern_level === 'warning' ? '#ff9800' :
+                        trend.concern_level === 'watch' ? '#2196f3' :
+                        '#4caf50';
+                    
+                    html += `
+                        <div style="border-left: 4px solid ${concernColor}; padding: 15px; margin: 10px 0; background: #f9f9f9;">
+                            <h4 style="margin: 0 0 10px 0; text-transform: uppercase;">
+                                ${param === 'ph' ? 'pH' : param}
+                                <span style="float: right; color: ${concernColor};">
+                                    ${trend.concern_level.toUpperCase()}
+                                </span>
+                            </h4>
+                            <p><strong>Current:</strong> ${trend.current_value?.toFixed(2) || 'N/A'}</p>
+                            <p><strong>Trend:</strong> ${trend.trend} ${trend.rate_of_change ? 
+                                `(${trend.rate_of_change > 0 ? '+' : ''}${trend.rate_of_change.toFixed(3)}/hour)` : ''}</p>
+                            ${trend.prediction ? `
+                                <p><strong>Predicted (24h):</strong> ${trend.prediction.predicted_value} 
+                                <span style="color: #666;">(${trend.prediction.confidence} confidence)</span></p>
+                            ` : ''}
+                            ${trend.time_to_threshold ? `
+                                <p style="color: ${concernColor}; font-weight: bold;">
+                                    ⏰ Time to threshold: ${trend.time_to_threshold} hours
+                                </p>
+                            ` : ''}
+                            <p style="font-style: italic;">${trend.recommendation}</p>
+                        </div>
+                    `;
+                }
+                
+                // Intervention priorities
+                if (correlation.intervention_priority && correlation.intervention_priority.length > 0) {
+                    html += '<h3 style="margin-top: 30px;">🎯 Intervention Priority Order</h3>';
+                    correlation.intervention_priority.forEach(action => {
+                        html += `
+                            <div style="background: #fff; border: 2px solid #2196f3; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                                <h4 style="color: #2196f3; margin: 0 0 10px 0;">
+                                    Priority ${action.order}: ${action.action}
+                                </h4>
+                                <p><strong>Why:</strong> ${action.why}</p>
+                                <p><strong>How:</strong> ${action.method}</p>
+                            </div>
+                        `;
+                    });
+                }
+                
+                // Cascading effects
+                if (correlation.cascading_effects && correlation.cascading_effects.length > 0) {
+                    html += '<h3 style="margin-top: 30px;">⛓️ Cascading Effects Chain</h3>';
+                    html += '<ol style="line-height: 2;">';
+                    correlation.cascading_effects.forEach(effect => {
+                        html += `<li>${effect}</li>`;
+                    });
+                    html += '</ol>';
+                }
+                
+                results.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                results.innerHTML = `<p>❌ Error: ${error.message}</p>`;
+            }
+        }
     </script>
 </body>
 </html>

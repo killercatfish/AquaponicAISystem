@@ -33,6 +33,8 @@ build/
 # Logs
 *.log
 data/logs/
+data/logs/*.log
+!data/logs/.gitkeep
 
 # Local databases
 data/databases/*.db

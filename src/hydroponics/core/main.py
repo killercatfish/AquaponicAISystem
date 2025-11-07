@@ -22,6 +22,7 @@ from hydroponics.llm.interface import AquaponicsLLM
 from hydroponics.database.manager import DatabaseManager
 from hydroponics.alerts.manager import AlertManager
 from hydroponics.core.config import Config
+from hydroponics.akbs.interface import get_akbs
 
 # Configure logging
 from hydroponics.core.config import config
@@ -415,6 +416,101 @@ async def shutdown_event():
     db_manager.close()
     logger.info("System shutdown complete")
 
+# ============================================================
+# AKBS KNOWLEDGE BASE ENDPOINTS
+# ============================================================
+
+@app.get("/api/knowledge/status")
+async def knowledge_status():
+    """Check if AKBS is available"""
+    akbs = get_akbs()
+    return {
+        "available": akbs.available,
+        "chunks": akbs.collection.count() if akbs.collection else 0
+    }
+
+@app.get("/api/knowledge/query")
+async def knowledge_query(q: str, n: int = 3):
+    """
+    Query knowledge base
+    
+    Parameters:
+    - q: Question to ask
+    - n: Number of results (default 3)
+    """
+    akbs = get_akbs()
+    return akbs.query(q, n_results=n)
+
+@app.get("/api/knowledge/parameter/{param}")
+async def knowledge_parameter_info(param: str):
+    """
+    Get knowledge about a specific parameter with current sensor value
+    
+    Parameters:
+    - param: 'ph', 'temperature', 'do', or 'water_level'
+    """
+    akbs = get_akbs()
+    
+    # Get current sensor reading
+    sensor_data = {
+        'ph': atlas_sensors.read_ph() if atlas_sensors else 7.0,
+        'temperature': temperature_sensors.read_all().get('sensor_0', 22.0) if temperature_sensors else 22.0,
+        'do': atlas_sensors.read_do() if atlas_sensors else 7.5,
+        'water_level': water_level.read_level().get('distance_cm', 15.0) if water_level else 15.0
+    }
+    
+    value = sensor_data.get(param, 0)
+    return akbs.get_parameter_info(param, value)
+
+@app.get("/api/knowledge/system-analysis")
+async def knowledge_system_analysis():
+    """
+    Analyze entire system with current readings
+    """
+    akbs = get_akbs()
+    
+    # Get all current readings
+    sensor_data = {
+        'ph': atlas_sensors.read_ph() if atlas_sensors else 6.8,
+        'temperature': temperature_sensors.read_all().get('sensor_0', 22.3) if temperature_sensors else 22.3,
+        'do': atlas_sensors.read_do() if atlas_sensors else 7.5,
+        'water_level': water_level.read_level().get('distance_cm', 15.2) if water_level else 15.2
+    }
+    return akbs.query_with_sensor_context(sensor_data)
+
+@app.get("/api/knowledge/intelligent-analysis/{param}")
+async def intelligent_parameter_analysis(param: str):
+    """
+    Get INTELLIGENT analysis (rules + knowledge combined)
+    """
+    akbs = get_akbs()
+    
+    # Get current sensor readings
+    sensor_data = {
+        'ph': atlas_sensors.read_ph() if atlas_sensors else 6.9,
+        'temperature': temperature_sensors.read_all().get('sensor_0', 22.0) if temperature_sensors else 22.0,
+        'do': atlas_sensors.read_do() if atlas_sensors else 7.5,
+    }
+    
+    value = sensor_data.get(param, 0)
+    
+    return akbs.get_intelligent_analysis(param, value, sensor_data)
+
+@app.get("/api/knowledge/predictive-analysis")
+async def predictive_analysis():
+    """
+    LAYER 3 & 4: Predictive Trend + Correlation Analysis
+    """
+    akbs = get_akbs()
+    
+    # Get current readings
+    sensor_data = {
+        'ph': atlas_sensors.read_ph() if atlas_sensors else 6.9,
+        'temperature': temperature_sensors.read_all().get('sensor_0', 22.0) if temperature_sensors else 22.0,
+        'do': atlas_sensors.read_do() if atlas_sensors else 7.5,
+    }
+    
+    return akbs.get_predictive_analysis(sensor_data)
 
 if __name__ == "__main__":
     import uvicorn
