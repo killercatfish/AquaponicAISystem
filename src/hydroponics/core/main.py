@@ -17,6 +17,8 @@ import logging
 
 # Local imports
 from hydroponics.sensors.interfaces import atlas_sensors, temperature_sensors, water_level, relay_control
+# Initialize temperature sensors immediately
+temperature_sensors.initialize()
 from hydroponics.ml.vision import PlantHealthAnalyzer
 from hydroponics.llm.interface import AquaponicsLLM
 from hydroponics.database.manager import DatabaseManager
@@ -139,8 +141,8 @@ def read_all_sensors():
             'ph': ph_value,
             'ec': ec_value,
             'do': do_value,
-            'temp_reservoir': temps.get('reservoir'),
-            'temp_fish_tank': temps.get('fish_tank'),
+            "temp_reservoir": temps.get("reservoir") if temps else None,
+            "temp_fish_tank": temps.get("fish_tank") if temps else None,
             'water_level': water_level_data.get('distance_cm'),
             'water_level_percent': water_level_data.get('water_level_percent')
         })
@@ -161,7 +163,7 @@ def read_all_sensors():
         # Note: WebSocket clients will poll system_state for updates
         # No need to broadcast from scheduled function (no event loop here)
         
-        logger.info(f"Sensor reading complete: pH={ph_value}, EC={ec_value}, DO={do_value}")
+        logger.info(f"Sensor reading complete: pH={ph_value}, EC={ec_value}, DO={do_value}, Temp={temps.get('reservoir')}")
         
     except Exception as e:
         logger.error(f"Error reading sensors: {e}")
@@ -247,7 +249,7 @@ def control_automation():
 
 
 # Schedule periodic tasks
-scheduler.add_job(read_all_sensors, 'interval', minutes=5, id='read_sensors')
+scheduler.add_job(read_all_sensors, 'interval', seconds=30, id='read_sensors')
 scheduler.add_job(analyze_plant_health, 'interval', hours=1, id='analyze_plants')
 scheduler.add_job(control_automation, 'interval', minutes=1, id='automation')
 scheduler.start()
@@ -269,8 +271,70 @@ async def read_root(request: Request):
 
 @app.get("/api/status")
 async def get_status():
-    """Get current system status"""
-    return JSONResponse(content=system_state)
+    """Get current system status for dashboard refresh"""
+    try:
+        # Read all sensors
+        sensors = {
+            "ph": atlas_sensors.read_ph(),
+            "ec": atlas_sensors.read_ec(),
+            "do": atlas_sensors.read_do(),
+            "temp_reservoir": None,
+            "temp_fish_tank": None,
+            "water_level_percent": water_level.read_level().get("percent", 0.0) if water_level else 0.0
+        }
+        
+        # Read temperature sensors
+        temps = temperature_sensors.read_all()
+        if temps:
+            sensors["temp_reservoir"] = temps.get("reservoir")
+            sensors["temp_fish_tank"] = temps.get("fish_tank")
+        
+        # Get relay states
+        relays = {}
+        if relay_control and hasattr(relay_control, 'relays') and relay_control.relays:
+            for relay_name in ["pump", "lights", "heater", "backup_aerator"]:
+                if relay_name in relay_control.relays:
+                    relays[relay_name] = relay_control.relays[relay_name].state
+                else:
+                    relays[relay_name] = False
+        else:
+            # Relays not initialized, return defaults
+            relays = {
+                "pump": False,
+                "lights": False,
+                "heater": False,
+                "backup_aerator": False
+            }
+        
+        # Get recent alerts (limit to last 10)
+        alerts = []
+        
+        # Determine overall system status
+        system_status = "running"
+        if any(alert.get("level") == "critical" for alert in alerts):
+            system_status = "error"
+        elif any(alert.get("level") == "warning" for alert in alerts):
+            system_status = "warning"
+        
+        return {
+            "sensors": sensors,
+            "relays": relays,
+            "alerts": alerts,
+            "system_status": system_status,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting status: {e}")
+        return {
+            "sensors": {},
+            "relays": {},
+            "alerts": [],
+            "system_status": "error",
+            "error": str(e)
+        }
+
+
 
 
 @app.get("/api/sensors")
@@ -390,7 +454,7 @@ async def startup_event():
     # Initialize hardware
     try:
         atlas_sensors.initialize()
-        temperature_sensors.initialize()
+        # temperature_sensors.initialize()
         water_level.initialize()
         relay_control.initialize()
         logger.info("Hardware initialized successfully")
@@ -454,7 +518,7 @@ async def knowledge_parameter_info(param: str):
     # Get current sensor reading
     sensor_data = {
         'ph': atlas_sensors.read_ph() if atlas_sensors else 7.0,
-        'temperature': temperature_sensors.read_all().get('sensor_0', 22.0) if temperature_sensors else 22.0,
+        'temperature': temperature_sensors.read_all().get('reservoir', 22.0) if temperature_sensors else 22.0,
         'do': atlas_sensors.read_do() if atlas_sensors else 7.5,
         'water_level': water_level.read_level().get('distance_cm', 15.0) if water_level else 15.0
     }
@@ -472,7 +536,7 @@ async def knowledge_system_analysis():
     # Get all current readings
     sensor_data = {
         'ph': atlas_sensors.read_ph() if atlas_sensors else 6.8,
-        'temperature': temperature_sensors.read_all().get('sensor_0', 22.3) if temperature_sensors else 22.3,
+        'temperature': temperature_sensors.read_all().get('reservoir', 22.3) if temperature_sensors else 22.3,
         'do': atlas_sensors.read_do() if atlas_sensors else 7.5,
         'water_level': water_level.read_level().get('distance_cm', 15.2) if water_level else 15.2
     }
@@ -488,7 +552,7 @@ async def intelligent_parameter_analysis(param: str):
     # Get current sensor readings
     sensor_data = {
         'ph': atlas_sensors.read_ph() if atlas_sensors else 6.9,
-        'temperature': temperature_sensors.read_all().get('sensor_0', 22.0) if temperature_sensors else 22.0,
+        'temperature': temperature_sensors.read_all().get('reservoir', 22.0) if temperature_sensors else 22.0,
         'do': atlas_sensors.read_do() if atlas_sensors else 7.5,
     }
     
@@ -506,7 +570,7 @@ async def predictive_analysis():
     # Get current readings
     sensor_data = {
         'ph': atlas_sensors.read_ph() if atlas_sensors else 6.9,
-        'temperature': temperature_sensors.read_all().get('sensor_0', 22.0) if temperature_sensors else 22.0,
+        'temperature': temperature_sensors.read_all().get('reservoir', 22.0) if temperature_sensors else 22.0,
         'do': atlas_sensors.read_do() if atlas_sensors else 7.5,
     }
     

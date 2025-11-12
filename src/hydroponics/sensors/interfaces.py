@@ -194,16 +194,12 @@ class TemperatureSensors:
                 self.mock_mode = True
                 return
             
+            # Name sensors based on expected positions
+            sensor_names = ['reservoir', 'fish_tank']
             for i, folder in enumerate(device_folders):
-                sensor_name = f"sensor_{i}"
+                sensor_name = sensor_names[i] if i < len(sensor_names) else f"sensor_{i}"
                 self.sensors[sensor_name] = folder + '/w1_slave'
                 logger.info(f"Found temperature sensor: {sensor_name}")
-            
-            # Map sensors to locations (update these IDs based on your actual sensors)
-            if len(self.sensors) >= 1:
-                self.sensors['reservoir'] = self.sensors.pop('sensor_0')
-            if len(self.sensors) >= 2:
-                self.sensors['fish_tank'] = self.sensors.pop('sensor_1')
             
         except Exception as e:
             logger.error(f"Error initializing temperature sensors: {e}")

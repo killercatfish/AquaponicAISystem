@@ -541,6 +541,9 @@
             };
             
             ws.onmessage = (event) => {
+                // Ignore pong keepalive messages
+                if (event.data === 'pong') return;
+                
                 const data = JSON.parse(event.data);
                 if (data.type === 'sensor_update' || data.type === 'initial_state') {
                     updateDashboard(data.data);
