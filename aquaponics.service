@@ -1,0 +1,14 @@
+[Unit]
+Description=STEM DREAM Aquaponics Control System
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/AquaponicAISystem
+ExecStart=/home/pi/AquaponicAISystem/venv/bin/python -m src.hydroponics.core.main
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
