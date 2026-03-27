@@ -31,40 +31,52 @@ class AtlasSensors:
         self.ec_sensor = None
         self.do_sensor = None
         self.initialized = False
-        self.mock_mode = AtlasI2C is None
-    
+        self.ph_mock = AtlasI2C is None
+        self.ec_mock = AtlasI2C is None
+        self.do_mock = AtlasI2C is None
+
     def initialize(self):
-        """Initialize all Atlas sensors"""
-        if self.mock_mode:
+        """Initialize all Atlas sensors independently"""
+        if AtlasI2C is None:
             logger.warning("Running in MOCK MODE - no actual sensors connected")
             self.initialized = True
             return
-        
+
+        # Initialize pH sensor (address 0x63)
         try:
-            # Initialize pH sensor (address 0x63)
             self.ph_sensor = AtlasI2C(address=0x63)
             self.ph_sensor.write("C,0")  # Disable continuous mode
+            self.ph_mock = False
             logger.info("pH sensor initialized at 0x63")
-            
-            # Initialize EC sensor (address 0x64)
+        except Exception as e:
+            logger.error(f"Error initializing pH sensor: {e}")
+            self.ph_mock = True
+
+        # Initialize EC sensor (address 0x64)
+        try:
             self.ec_sensor = AtlasI2C(address=0x64)
             self.ec_sensor.write("C,0")
+            self.ec_mock = False
             logger.info("EC sensor initialized at 0x64")
-            
-            # Initialize DO sensor (address 0x61)
+        except Exception as e:
+            logger.error(f"Error initializing EC sensor: {e}")
+            self.ec_mock = True
+
+        # Initialize DO sensor (address 0x61)
+        try:
             self.do_sensor = AtlasI2C(address=0x61)
             self.do_sensor.write("C,0")
+            self.do_mock = False
             logger.info("DO sensor initialized at 0x61")
-            
-            self.initialized = True
-            
         except Exception as e:
-            logger.error(f"Error initializing Atlas sensors: {e}")
-            self.mock_mode = True
+            logger.error(f"Error initializing DO sensor: {e}")
+            self.do_mock = True
+
+        self.initialized = True
     
     def read_ph(self) -> Optional[float]:
         """Read pH value"""
-        if self.mock_mode:
+        if self.ph_mock:
             return 6.8 + (time.time() % 10) * 0.05  # Mock data
         
         try:
@@ -79,7 +91,7 @@ class AtlasSensors:
     
     def read_ec(self) -> Optional[float]:
         """Read EC/TDS value (in mS/cm)"""
-        if self.mock_mode:
+        if self.ec_mock:
             return 1.2 + (time.time() % 8) * 0.05  # Mock data
         
         try:
@@ -95,7 +107,7 @@ class AtlasSensors:
     
     def read_do(self) -> Optional[float]:
         """Read dissolved oxygen (in mg/L)"""
-        if self.mock_mode:
+        if self.do_mock:
             return 7.5 + (time.time() % 6) * 0.2  # Mock data
         
         try:
@@ -110,22 +122,28 @@ class AtlasSensors:
     
     def set_temperature_compensation(self, temp_c: float):
         """Set temperature compensation for all sensors"""
-        if self.mock_mode:
-            return
-        
-        try:
-            self.ph_sensor.write(f"T,{temp_c}")
-            self.ec_sensor.write(f"T,{temp_c}")
-            self.do_sensor.write(f"T,{temp_c}")
-        except Exception as e:
-            logger.error(f"Error setting temperature compensation: {e}")
+        if not self.ph_mock:
+            try:
+                self.ph_sensor.write(f"T,{temp_c}")
+            except Exception as e:
+                logger.error(f"Error setting pH temperature compensation: {e}")
+        if not self.ec_mock:
+            try:
+                self.ec_sensor.write(f"T,{temp_c}")
+            except Exception as e:
+                logger.error(f"Error setting EC temperature compensation: {e}")
+        if not self.do_mock:
+            try:
+                self.do_sensor.write(f"T,{temp_c}")
+            except Exception as e:
+                logger.error(f"Error setting DO temperature compensation: {e}")
     
     def calibrate_ph(self, point: str, value: float):
         """
         Calibrate pH sensor
         point: 'mid' (pH 7), 'low' (pH 4), 'high' (pH 10)
         """
-        if self.mock_mode:
+        if self.ph_mock:
             logger.info(f"Mock calibration: pH {point} = {value}")
             return
         
@@ -142,7 +160,7 @@ class AtlasSensors:
         point: 'dry', 'low', 'high'
         value: in ÂµS/cm (e.g., 1413 for 1.413 mS/cm)
         """
-        if self.mock_mode:
+        if self.ec_mock:
             logger.info(f"Mock calibration: EC {point} = {value}")
             return
         
@@ -161,7 +179,7 @@ class AtlasSensors:
         Calibrate DO sensor
         point: 'atm' (atmospheric) or 'zero'
         """
-        if self.mock_mode:
+        if self.do_mock:
             logger.info(f"Mock calibration: DO {point}")
             return
         
