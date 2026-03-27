@@ -9,6 +9,7 @@ WorkingDirectory=/home/pi/AquaponicAISystem
 ExecStart=/home/pi/AquaponicAISystem/venv/bin/python -m src.hydroponics.core.main
 Restart=on-failure
 RestartSec=10
+Environment=PYTHONPATH=/home/pi/AquaponicAISystem/src
 
 [Install]
 WantedBy=multi-user.target
