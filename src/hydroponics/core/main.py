@@ -17,8 +17,6 @@ import logging
 
 # Local imports
 from hydroponics.sensors.interfaces import atlas_sensors, temperature_sensors, water_level, relay_control
-# Initialize temperature sensors immediately
-temperature_sensors.initialize()
 from hydroponics.ml.vision import PlantHealthAnalyzer
 from hydroponics.llm.interface import AquaponicsLLM
 from hydroponics.database.manager import DatabaseManager
@@ -248,14 +246,6 @@ def control_automation():
         logger.error(f"Error in automation control: {e}")
 
 
-# Schedule periodic tasks
-scheduler.add_job(read_all_sensors, 'interval', seconds=30, id='read_sensors')
-scheduler.add_job(analyze_plant_health, 'interval', hours=1, id='analyze_plants')
-scheduler.add_job(control_automation, 'interval', minutes=1, id='automation')
-scheduler.start()
-
-# Initial sensor reading on startup
-scheduler.add_job(read_all_sensors, id='startup_read')
 
 
 # API Routes
@@ -454,20 +444,29 @@ async def startup_event():
     # Initialize hardware
     try:
         atlas_sensors.initialize()
-        # temperature_sensors.initialize()
+        temperature_sensors.initialize()
         water_level.initialize()
         relay_control.initialize()
         logger.info("Hardware initialized successfully")
     except Exception as e:
         logger.error(f"Hardware initialization error: {e}")
-    
+
     # Load ML models
     try:
         plant_analyzer.load_model()
         logger.info("ML models loaded successfully")
     except Exception as e:
         logger.error(f"ML model loading error: {e}")
-    
+
+    # Start scheduler (here, not at module level, to avoid duplicates)
+    scheduler.add_job(read_all_sensors, 'interval', seconds=30, id='read_sensors')
+    scheduler.add_job(analyze_plant_health, 'interval', hours=1, id='analyze_plants')
+    scheduler.add_job(control_automation, 'interval', minutes=1, id='automation')
+    scheduler.start()
+
+    # Initial sensor reading
+    scheduler.add_job(read_all_sensors, id='startup_read')
+
     logger.info("System startup complete")
 
 
@@ -579,9 +578,8 @@ async def predictive_analysis():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
-        "hydroponics.core.main:app",
+        app,
         host="0.0.0.0",
         port=8000,
-        reload=False,
         log_level="info"
     )
