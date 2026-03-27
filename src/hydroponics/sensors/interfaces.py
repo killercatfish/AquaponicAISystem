@@ -10,7 +10,7 @@ import glob
 logger = logging.getLogger(__name__)
 
 try:
-    from atlas_i2c import AtlasI2C
+    from atlas_i2c.atlas_i2c import AtlasI2C
 except ImportError:
     logger.warning("atlas_i2c not installed, using mock sensors")
     AtlasI2C = None
@@ -70,9 +70,9 @@ class AtlasSensors:
         try:
             self.ph_sensor.write("R")
             time.sleep(1)
-            response = self.ph_sensor.read()
+            response = self.ph_sensor.read('R')
             if response.status_code == 1:
-                return float(response.data)
+                return float(response.data.decode())
         except Exception as e:
             logger.error(f"Error reading pH: {e}")
         return None
@@ -85,10 +85,10 @@ class AtlasSensors:
         try:
             self.ec_sensor.write("R")
             time.sleep(1)
-            response = self.ec_sensor.read()
+            response = self.ec_sensor.read('R')
             if response.status_code == 1:
-                # Response is in ÂµS/cm, convert to mS/cm
-                return float(response.data.split(',')[0]) / 1000
+                # Response is in µS/cm, convert to mS/cm
+                return float(response.data.decode().split(',')[0]) / 1000
         except Exception as e:
             logger.error(f"Error reading EC: {e}")
         return None
@@ -101,9 +101,9 @@ class AtlasSensors:
         try:
             self.do_sensor.write("R")
             time.sleep(1)
-            response = self.do_sensor.read()
+            response = self.do_sensor.read('R')
             if response.status_code == 1:
-                return float(response.data)
+                return float(response.data.decode())
         except Exception as e:
             logger.error(f"Error reading DO: {e}")
         return None
@@ -198,7 +198,7 @@ class TemperatureSensors:
             sensor_names = ['reservoir', 'fish_tank']
             for i, folder in enumerate(device_folders):
                 sensor_name = sensor_names[i] if i < len(sensor_names) else f"sensor_{i}"
-                self.sensors[sensor_name] = folder + '/w1_slave'
+                self.sensors[sensor_name] = folder + '/temperature'
                 logger.info(f"Found temperature sensor: {sensor_name}")
             
         except Exception as e:
@@ -206,19 +206,12 @@ class TemperatureSensors:
             self.mock_mode = True
     
     def read_sensor(self, device_file: str) -> Optional[float]:
-        """Read a single DS18B20 sensor"""
+        """Read a single DS18B20 sensor from sysfs temperature file"""
         try:
             with open(device_file, 'r') as f:
-                lines = f.readlines()
-            
-            if lines[0].strip()[-3:] != 'YES':
-                return None
-            
-            equals_pos = lines[1].find('t=')
-            if equals_pos != -1:
-                temp_string = lines[1][equals_pos+2:]
-                temp_c = float(temp_string) / 1000.0
-                return temp_c
+                raw = f.read().strip()
+            temp_c = int(raw) / 1000.0
+            return temp_c
         except Exception as e:
             logger.error(f"Error reading temperature sensor: {e}")
         return None
