@@ -4,6 +4,7 @@ Sensor interface modules for Atlas Scientific and other sensors
 
 import time
 import logging
+import subprocess
 from typing import Optional, Dict
 import glob
 
@@ -16,10 +17,9 @@ except ImportError:
     AtlasI2C = None
 
 try:
-    from gpiozero import DigitalOutputDevice, DistanceSensor
+    from gpiozero import DistanceSensor
 except ImportError:
-    logger.warning("gpiozero not installed, using mock sensors")
-    DigitalOutputDevice = None
+    logger.warning("gpiozero not installed, using mock water level sensor")
     DistanceSensor = None
 
 
@@ -303,72 +303,76 @@ class WaterLevelSensor:
 
 
 class RelayControl:
-    """Control for Adafruit 4-outlet relay module"""
-    
+    """Control for Adafruit 4-outlet relay module via pinctrl GPIO"""
+
     def __init__(self):
-        self.relays = {}
-        self.mock_mode = DigitalOutputDevice is None
-        
-        # GPIO pins for relay control (adjust based on wiring)
+        self.relay_states = {}
+        self.mock_mode = False
+
+        # GPIO pins for relay control
         self.relay_pins = {
-            'pump': 23,      # Main water pump
-            'lights': 24,    # Grow lights
-            'heater': 25,    # Water heater
+            'heater': 23,         # Water heater (GPIO23 → relay signal)
+            'pump': 24,           # Main water pump
+            'lights': 25,         # Grow lights
             'backup_aerator': 22  # Emergency air pump
         }
-    
+
+    def _gpio_set(self, pin: int, high: bool):
+        """Set a GPIO pin high or low using pinctrl command"""
+        level = 'dh' if high else 'dl'
+        subprocess.run(
+            ['pinctrl', 'set', str(pin), 'op', level],
+            check=True,
+            capture_output=True,
+            timeout=5
+        )
+
     def initialize(self):
-        """Initialize relay control"""
-        if self.mock_mode:
-            logger.warning("Running relay control in MOCK MODE")
-            return
-        
+        """Initialize relay control — set all pins as outputs, driven low"""
         try:
             for name, pin in self.relay_pins.items():
-                self.relays[name] = DigitalOutputDevice(pin)
-                self.relays[name].off()  # Ensure off on startup
+                self._gpio_set(pin, False)
+                self.relay_states[name] = False
                 logger.info(f"Relay '{name}' initialized on GPIO {pin}")
+        except FileNotFoundError:
+            logger.warning("pinctrl not found — running relay control in MOCK MODE")
+            self.mock_mode = True
         except Exception as e:
             logger.error(f"Error initializing relays: {e}")
             self.mock_mode = True
-    
+
     def set_relay(self, name: str, state: bool):
         """Set relay state (True=ON, False=OFF)"""
         if self.mock_mode:
             logger.info(f"Mock relay: {name} = {'ON' if state else 'OFF'}")
             return
-        
+
+        if name not in self.relay_pins:
+            logger.error(f"Unknown relay: {name}")
+            return
+
         try:
-            if name not in self.relays:
-                raise ValueError(f"Unknown relay: {name}")
-            
-            if state:
-                self.relays[name].on()
-            else:
-                self.relays[name].off()
-            
+            self._gpio_set(self.relay_pins[name], state)
+            self.relay_states[name] = state
             logger.info(f"Relay {name} set to {'ON' if state else 'OFF'}")
         except Exception as e:
             logger.error(f"Error controlling relay {name}: {e}")
-    
+
     def get_state(self, name: str) -> bool:
         """Get current relay state"""
         if self.mock_mode:
             return False
-        
-        try:
-            return self.relays[name].is_active
-        except Exception as e:
-            logger.error(f"Error getting relay state: {e}")
-            return False
-    
+        return self.relay_states.get(name, False)
+
     def cleanup(self):
         """Turn off all relays on shutdown"""
         if self.mock_mode:
             return
-        
-        for name, relay in self.relays.items():
-            relay.off()
+        for name, pin in self.relay_pins.items():
+            try:
+                self._gpio_set(pin, False)
+            except Exception:
+                pass
         logger.info("All relays turned off")
 
 

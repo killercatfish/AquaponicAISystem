@@ -213,11 +213,12 @@ def control_automation():
     try:
         sensors = system_state['sensors']
         
-        # Temperature-based heater control
-        if sensors['temp_reservoir'] and sensors['temp_reservoir'] < config.temp_min:
+        # Temperature-based heater control with hysteresis (18–20°C)
+        # ON below 18°C, OFF above 20°C, hold current state in between
+        if sensors['temp_reservoir'] and sensors['temp_reservoir'] < 18.0:
             relay_control.set_relay('heater', True)
             system_state['relays']['heater'] = True
-        elif sensors['temp_reservoir'] and sensors['temp_reservoir'] > config.temp_max:
+        elif sensors['temp_reservoir'] and sensors['temp_reservoir'] > 20.0:
             relay_control.set_relay('heater', False)
             system_state['relays']['heater'] = False
         
@@ -281,20 +282,8 @@ async def get_status():
         
         # Get relay states
         relays = {}
-        if relay_control and hasattr(relay_control, 'relays') and relay_control.relays:
-            for relay_name in ["pump", "lights", "heater", "backup_aerator"]:
-                if relay_name in relay_control.relays:
-                    relays[relay_name] = relay_control.relays[relay_name].state
-                else:
-                    relays[relay_name] = False
-        else:
-            # Relays not initialized, return defaults
-            relays = {
-                "pump": False,
-                "lights": False,
-                "heater": False,
-                "backup_aerator": False
-            }
+        for relay_name in ["pump", "lights", "heater", "backup_aerator"]:
+            relays[relay_name] = relay_control.get_state(relay_name)
         
         # Get recent alerts (limit to last 10)
         alerts = []
