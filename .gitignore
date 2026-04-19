@@ -77,3 +77,4 @@ Desktop.ini
 # Logs - ignore log files but keep directory
 data/logs/*.log
 !data/logs/.gitkeep
+papers/
