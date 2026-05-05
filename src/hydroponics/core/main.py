@@ -17,6 +17,8 @@ import logging
 
 # Local imports
 from hydroponics.sensors.interfaces import atlas_sensors, temperature_sensors, water_level, relay_control
+from hydroponics.sensors.light_controller import light_controller
+from hydroponics.sensors import light_schedule
 from hydroponics.ml.vision import PlantHealthAnalyzer
 from hydroponics.llm.interface import AquaponicsLLM
 from hydroponics.database.manager import DatabaseManager
@@ -60,7 +62,8 @@ system_state = {
         'temp_reservoir': None,
         'temp_fish_tank': None,
         'water_level': None,
-        'water_level_percent': None
+        'water_level_percent': None,
+        'brightness': None
     },
     'relays': {
         'pump': False,
@@ -133,7 +136,10 @@ def read_all_sensors():
         
         # Read water level
         water_level_data = water_level.read_level()
-        
+
+        # Read light brightness from ESP32
+        brightness_value = light_controller.get_brightness()
+
         # Update system state
         system_state['sensors'].update({
             'ph': ph_value,
@@ -142,7 +148,8 @@ def read_all_sensors():
             "temp_reservoir": temps.get("reservoir") if temps else None,
             "temp_fish_tank": temps.get("fish_tank") if temps else None,
             'water_level': water_level_data.get('distance_cm'),
-            'water_level_percent': water_level_data.get('water_level_percent')
+            'water_level_percent': water_level_data.get('water_level_percent'),
+            'brightness': brightness_value
         })
         
         system_state['last_update'] = datetime.now().isoformat()
@@ -436,6 +443,10 @@ async def startup_event():
         temperature_sensors.initialize()
         water_level.initialize()
         relay_control.initialize()
+        # Light controller talks to ESP32 over /dev/ttyUSB0
+        light_controller.port = config.light_dimmer_port
+        light_controller.baud = config.light_dimmer_baud
+        light_controller.initialize()
         logger.info("Hardware initialized successfully")
     except Exception as e:
         logger.error(f"Hardware initialization error: {e}")
@@ -451,6 +462,15 @@ async def startup_event():
     scheduler.add_job(read_all_sensors, 'interval', seconds=30, id='read_sensors')
     scheduler.add_job(analyze_plant_health, 'interval', hours=1, id='analyze_plants')
     scheduler.add_job(control_automation, 'interval', minutes=1, id='automation')
+
+    # HLG dimmer sunrise/sunset schedule + boot-time recovery
+    light_schedule.register_schedule(
+        scheduler,
+        on_hour=config.light_dimmer_on_hour,
+        off_hour=config.light_dimmer_off_hour,
+        ramp_minutes=config.light_dimmer_ramp_minutes,
+    )
+
     scheduler.start()
 
     # Initial sensor reading
@@ -465,8 +485,35 @@ async def shutdown_event():
     logger.info("Shutting down system...")
     scheduler.shutdown()
     relay_control.cleanup()
+    light_controller.cleanup()
     db_manager.close()
     logger.info("System shutdown complete")
+
+
+@app.get("/api/light")
+async def get_light():
+    """Read current dimmer brightness."""
+    return JSONResponse(content={'brightness': light_controller.get_brightness()})
+
+
+@app.post("/api/light/set/{pct}")
+async def set_light(pct: int):
+    """Manually set dimmer brightness (0-100)."""
+    ok = light_controller.set_brightness(pct)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Failed to set brightness")
+    db_manager.log_action('light_set', str(pct))
+    return JSONResponse(content={'success': True, 'brightness': pct})
+
+
+@app.post("/api/light/fade/{pct}/{seconds}")
+async def fade_light(pct: int, seconds: int):
+    """Manually fade dimmer to a target over N seconds."""
+    ok = light_controller.fade_to(pct, seconds)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Failed to start fade")
+    db_manager.log_action('light_fade', f"{pct}%/{seconds}s")
+    return JSONResponse(content={'success': True, 'target': pct, 'seconds': seconds})
 
 # ============================================================
 # AKBS KNOWLEDGE BASE ENDPOINTS

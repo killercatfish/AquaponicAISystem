@@ -72,9 +72,16 @@ class Config:
     pump_on_minutes: int = 15
     pump_off_minutes: int = 15
     
-    # Light schedule (24h format)
+    # Light schedule (24h format) — for relay-controlled lights
     lights_on_hour: int = 6
     lights_off_hour: int = 22
+
+    # === HLG PWM DIMMER (ESP32 light controller) ===
+    light_dimmer_port: str = '/dev/ttyUSB0'
+    light_dimmer_baud: int = 115200
+    light_dimmer_on_hour: int = 6     # sunrise ramp start
+    light_dimmer_off_hour: int = 20   # sunset ramp start (8pm)
+    light_dimmer_ramp_minutes: int = 30
     
     # === LLM SETTINGS ===
     # LLM backend: 'openai', 'anthropic', 'ollama', or 'mock'

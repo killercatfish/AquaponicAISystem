@@ -12,6 +12,7 @@ jinja2>=3.1.0
 smbus2>=0.4.0
 atlas-i2c>=0.3.1
 gpiozero>=2.0.0
+pyserial>=3.5
 
 # === BASIC UTILITIES (Required) ===
 numpy>=1.24.0

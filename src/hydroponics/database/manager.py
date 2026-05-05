@@ -56,9 +56,17 @@ class DatabaseManager:
                     do REAL,
                     temp_reservoir REAL,
                     temp_fish_tank REAL,
-                    water_level_percent REAL
+                    water_level_percent REAL,
+                    brightness REAL
                 )
             """)
+
+            # Migrate older databases that predate the brightness column.
+            cursor.execute("PRAGMA table_info(sensor_readings)")
+            existing_cols = {row['name'] for row in cursor.fetchall()}
+            if 'brightness' not in existing_cols:
+                cursor.execute("ALTER TABLE sensor_readings ADD COLUMN brightness REAL")
+                logger.info("Added brightness column to sensor_readings")
             
             # Create plant analysis table
             cursor.execute("""
@@ -142,16 +150,17 @@ class DatabaseManager:
             # SQLite logging
             cursor = self.conn.cursor()
             cursor.execute("""
-                INSERT INTO sensor_readings 
-                (ph, ec, do, temp_reservoir, temp_fish_tank, water_level_percent)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO sensor_readings
+                (ph, ec, do, temp_reservoir, temp_fish_tank, water_level_percent, brightness)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (
                 sensors.get('ph'),
                 sensors.get('ec'),
                 sensors.get('do'),
                 sensors.get('temp_reservoir'),
                 sensors.get('temp_fish_tank'),
-                sensors.get('water_level_percent')
+                sensors.get('water_level_percent'),
+                sensors.get('brightness')
             ))
             self.conn.commit()
             
