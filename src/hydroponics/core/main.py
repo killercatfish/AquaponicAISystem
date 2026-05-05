@@ -19,6 +19,7 @@ import logging
 from hydroponics.sensors.interfaces import atlas_sensors, temperature_sensors, water_level, relay_control
 from hydroponics.sensors.light_controller import light_controller
 from hydroponics.sensors import light_schedule
+from hydroponics.sensors import pump_cycle
 from hydroponics.ml.vision import PlantHealthAnalyzer
 from hydroponics.llm.interface import AquaponicsLLM
 from hydroponics.database.manager import DatabaseManager
@@ -308,6 +309,8 @@ async def get_status():
             "relays": relays,
             "alerts": alerts,
             "system_status": system_status,
+            "light_state": light_controller.state,
+            "pump_cycle": pump_cycle.get_status(),
             "timestamp": datetime.now().isoformat()
         }
         
@@ -444,8 +447,9 @@ async def startup_event():
         temperature_sensors.initialize()
         water_level.initialize()
         relay_control.initialize()
-        # Light controller talks to ESP32 over /dev/ttyUSB0
+        # Light controller talks to ESP32 over USB serial
         light_controller.port = config.light_dimmer_port
+        light_controller.port_fallback = config.light_dimmer_port_fallback
         light_controller.baud = config.light_dimmer_baud
         light_controller.initialize()
         logger.info("Hardware initialized successfully")
@@ -472,6 +476,9 @@ async def startup_event():
         ramp_minutes=config.light_dimmer_ramp_minutes,
     )
 
+    # Pump auto-cycle: 1 min ON / 14 min OFF, 24/7
+    pump_cycle.register_schedule(scheduler)
+
     scheduler.start()
 
     # Initial sensor reading
@@ -493,13 +500,22 @@ async def shutdown_event():
 
 @app.get("/api/light")
 async def get_light():
-    """Read current dimmer brightness."""
-    return JSONResponse(content={'brightness': light_controller.get_brightness()})
+    """Read current dimmer brightness and connection state."""
+    return JSONResponse(content={
+        'brightness': light_controller.get_brightness(),
+        'state': light_controller.state,
+        'connected': light_controller.is_connected,
+    })
 
 
 @app.post("/api/light/set/{pct}")
 async def set_light(pct: int):
     """Manually set dimmer brightness (0-100)."""
+    if not light_controller.is_connected:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Light controller {light_controller.state}",
+        )
     ok = light_controller.set_brightness(pct)
     if not ok:
         raise HTTPException(status_code=500, detail="Failed to set brightness")
@@ -510,11 +526,56 @@ async def set_light(pct: int):
 @app.post("/api/light/fade/{pct}/{seconds}")
 async def fade_light(pct: int, seconds: int):
     """Manually fade dimmer to a target over N seconds."""
+    if not light_controller.is_connected:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Light controller {light_controller.state}",
+        )
     ok = light_controller.fade_to(pct, seconds)
     if not ok:
         raise HTTPException(status_code=500, detail="Failed to start fade")
     db_manager.log_action('light_fade', f"{pct}%/{seconds}s")
     return JSONResponse(content={'success': True, 'target': pct, 'seconds': seconds})
+
+
+@app.post("/api/light/reconnect")
+async def reconnect_light():
+    """Force a fresh attempt to open the serial port (recovery after USB renumber)."""
+    ok = light_controller.reconnect()
+    return JSONResponse(content={
+        'success': ok,
+        'state': light_controller.state,
+    })
+
+
+@app.get("/api/pump/status")
+async def pump_status():
+    """Current pump state and cycle mode."""
+    return JSONResponse(content=pump_cycle.get_status())
+
+
+@app.post("/api/pump/on")
+async def pump_manual_on():
+    """Manual override: pump ON (pauses auto-cycle)."""
+    pump_cycle.manual_on()
+    db_manager.log_action('pump_manual', 'on')
+    return JSONResponse(content={'success': True, **pump_cycle.get_status()})
+
+
+@app.post("/api/pump/off")
+async def pump_manual_off():
+    """Manual override: pump OFF (pauses auto-cycle)."""
+    pump_cycle.manual_off()
+    db_manager.log_action('pump_manual', 'off')
+    return JSONResponse(content={'success': True, **pump_cycle.get_status()})
+
+
+@app.post("/api/pump/auto")
+async def pump_resume_auto():
+    """Resume auto-cycle (1 min ON / 14 min OFF)."""
+    pump_cycle.resume_auto()
+    db_manager.log_action('pump_auto', 'resume')
+    return JSONResponse(content={'success': True, **pump_cycle.get_status()})
 
 # ============================================================
 # AKBS KNOWLEDGE BASE ENDPOINTS

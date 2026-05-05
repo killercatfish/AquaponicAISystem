@@ -77,7 +77,10 @@ class Config:
     lights_off_hour: int = 22
 
     # === HLG PWM DIMMER (ESP32 light controller) ===
-    light_dimmer_port: str = '/dev/ttyUSB0'
+    # Stable path follows the CP2102 across USB renumbering. Falls back to
+    # /dev/ttyUSB0 if udev hasn't created the by-id link.
+    light_dimmer_port: str = '/dev/serial/by-id/usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller_0001-if00-port0'
+    light_dimmer_port_fallback: str = '/dev/ttyUSB0'
     light_dimmer_baud: int = 115200
     light_dimmer_on_hour: int = 6     # sunrise ramp start
     light_dimmer_off_hour: int = 20   # sunset ramp start (8pm)

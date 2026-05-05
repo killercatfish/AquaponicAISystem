@@ -250,6 +250,15 @@
         .icon-camera::before { content: "📷 "; }
         .icon-refresh::before { content: "🔄 "; }
         .icon-light::before { content: "💡 "; }
+        .icon-pump::before { content: "🌊 "; }
+
+        .btn-pump-on { background: #2e7d32; color: white; }
+        .btn-pump-on:hover { background: #1b5e20; }
+        .btn-pump-off { background: #c62828; color: white; }
+        .btn-pump-off:hover { background: #b71c1c; }
+
+        .state-badge.auto { background: #4caf50; color: white; }
+        .state-badge.manual { background: #ff9800; color: white; }
 
         .light-presets {
             display: flex;
@@ -296,6 +305,19 @@
         .btn-sunrise:hover { background: #f57c00; }
         .btn-sunset { background: #5e35b1; color: white; }
         .btn-sunset:hover { background: #4527a0; }
+
+        .state-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        .state-badge.connected { background: #4caf50; color: white; }
+        .state-badge.disconnected { background: #f44336; color: white; }
+        .state-badge.mock { background: #9e9e9e; color: white; }
         /* AKBS Knowledge Integration Styles */
         .info-btn {
             background: #4CAF50;
@@ -484,22 +506,40 @@
 
             <!-- Light Control (HLG PWM dimmer via ESP32) -->
             <div class="card">
-                <h2><span class="icon-light"></span>Light Control</h2>
+                <h2><span class="icon-light"></span>Light Control <span id="light-state-badge" class="state-badge"></span></h2>
                 <div class="sensor-reading">
                     <span class="sensor-label">Brightness</span>
                     <span class="sensor-value" id="brightness-value">--</span>
                 </div>
                 <div class="light-presets" id="light-presets">
-                    <button class="light-preset-btn" data-pct="0" onclick="setLightBrightness(0)">0%</button>
-                    <button class="light-preset-btn" data-pct="25" onclick="setLightBrightness(25)">25%</button>
-                    <button class="light-preset-btn" data-pct="50" onclick="setLightBrightness(50)">50%</button>
-                    <button class="light-preset-btn" data-pct="75" onclick="setLightBrightness(75)">75%</button>
-                    <button class="light-preset-btn" data-pct="100" onclick="setLightBrightness(100)">100%</button>
+                    <button type="button" class="light-preset-btn" data-pct="0" onclick="setLightBrightness(0)">0%</button>
+                    <button type="button" class="light-preset-btn" data-pct="25" onclick="setLightBrightness(25)">25%</button>
+                    <button type="button" class="light-preset-btn" data-pct="50" onclick="setLightBrightness(50)">50%</button>
+                    <button type="button" class="light-preset-btn" data-pct="75" onclick="setLightBrightness(75)">75%</button>
+                    <button type="button" class="light-preset-btn" data-pct="100" onclick="setLightBrightness(100)">100%</button>
                 </div>
                 <div class="light-fade-buttons">
-                    <button class="btn btn-sunrise" onclick="lightFade(100, 1800, 'sunrise')">🌅 Sunrise Now</button>
-                    <button class="btn btn-sunset" onclick="lightFade(0, 1800, 'sunset')">🌇 Sunset Now</button>
+                    <button type="button" class="btn btn-sunrise" onclick="lightFade(100, 1800, 'sunrise')">🌅 Sunrise Now</button>
+                    <button type="button" class="btn btn-sunset" onclick="lightFade(0, 1800, 'sunset')">🌇 Sunset Now</button>
                 </div>
+                <button type="button" class="btn" id="light-reconnect-btn" style="width: 100%; margin-top: 10px; background: #eee; display: none;" onclick="reconnectLight()">🔌 Reconnect ESP32</button>
+            </div>
+
+            <!-- Pump Cycle (1 min ON / 14 min OFF, GPIO23) -->
+            <div class="card">
+                <h2><span class="icon-pump"></span>Pump Cycle <span id="pump-mode-badge" class="state-badge"></span></h2>
+                <div class="sensor-reading">
+                    <span class="sensor-label">Status</span>
+                    <span class="sensor-value" id="pump-state-value">--</span>
+                </div>
+                <div class="sensor-reading">
+                    <span class="sensor-label" style="font-size: 12px; color: #999;">Auto cycle: 1 min ON every 15 min</span>
+                </div>
+                <div class="light-fade-buttons">
+                    <button type="button" class="btn btn-pump-on" onclick="pumpManual('on')">▶️ On</button>
+                    <button type="button" class="btn btn-pump-off" onclick="pumpManual('off')">⏹ Off</button>
+                </div>
+                <button type="button" class="btn" id="pump-auto-btn" style="width: 100%; margin-top: 10px; background: #4caf50; color: white;" onclick="pumpResumeAuto()">🔄 Resume Auto Cycle</button>
             </div>
         </div>
 
@@ -642,6 +682,8 @@
             updateSensorValue('temp-fish-value', sensors.temp_fish_tank, 12.0, 15.0, 10.0, 18.0, '°C');
             updateSensorValue('water-level-value', sensors.water_level_percent, 50.0, 90.0, 30.0, 100.0, '%');
             updateBrightness(sensors.brightness);
+            updateLightState(state.light_state);
+            updatePumpCycle(state.pump_cycle);
             
             // Update relay states
             for (const [relay, state] of Object.entries(relays)) {
@@ -728,28 +770,52 @@
             } else {
                 element.textContent = Math.round(value) + '%';
             }
-            // Highlight the matching preset button
             document.querySelectorAll('.light-preset-btn').forEach(btn => {
                 btn.classList.toggle('active', value !== null && value !== undefined && parseInt(btn.dataset.pct) === Math.round(value));
             });
         }
 
+        function updateLightState(state) {
+            const badge = document.getElementById('light-state-badge');
+            const reconnectBtn = document.getElementById('light-reconnect-btn');
+            if (!badge) return;
+            if (!state || state === 'connected') {
+                badge.textContent = 'connected';
+                badge.className = 'state-badge connected';
+                if (reconnectBtn) reconnectBtn.style.display = 'none';
+            } else {
+                badge.textContent = state;
+                badge.className = `state-badge ${state}`;
+                if (reconnectBtn) reconnectBtn.style.display = 'block';
+            }
+        }
+
         async function setLightBrightness(pct) {
             try {
                 const response = await fetch(`/api/light/set/${pct}`, { method: 'POST' });
-                const data = await response.json();
-                if (data.success) {
-                    updateBrightness(data.brightness);
+                if (!response.ok) {
+                    let detail = `HTTP ${response.status}`;
+                    try { detail = (await response.json()).detail || detail; } catch (e) {}
+                    alert(`Failed to set brightness: ${detail}`);
+                    return;
                 }
+                const data = await response.json();
+                if (data.success) updateBrightness(data.brightness);
             } catch (error) {
                 console.error('Error setting brightness:', error);
-                alert('Failed to set brightness');
+                alert('Failed to set brightness: ' + error.message);
             }
         }
 
         async function lightFade(pct, seconds, label) {
             try {
                 const response = await fetch(`/api/light/fade/${pct}/${seconds}`, { method: 'POST' });
+                if (!response.ok) {
+                    let detail = `HTTP ${response.status}`;
+                    try { detail = (await response.json()).detail || detail; } catch (e) {}
+                    alert(`Failed to start fade: ${detail}`);
+                    return;
+                }
                 const data = await response.json();
                 if (data.success) {
                     const minutes = Math.round(seconds / 60);
@@ -757,7 +823,58 @@
                 }
             } catch (error) {
                 console.error('Error starting fade:', error);
-                alert('Failed to start fade');
+                alert('Failed to start fade: ' + error.message);
+            }
+        }
+
+        function updatePumpCycle(pump) {
+            if (!pump) return;
+            const stateEl = document.getElementById('pump-state-value');
+            const badge = document.getElementById('pump-mode-badge');
+            if (stateEl) {
+                stateEl.textContent = pump.state ? 'ON' : 'OFF';
+                stateEl.className = 'sensor-value ' + (pump.state ? 'good' : '');
+            }
+            if (badge) {
+                badge.textContent = pump.mode;
+                badge.className = `state-badge ${pump.mode}`;
+            }
+        }
+
+        async function pumpManual(action) {
+            try {
+                const response = await fetch(`/api/pump/${action}`, { method: 'POST' });
+                if (!response.ok) {
+                    let detail = `HTTP ${response.status}`;
+                    try { detail = (await response.json()).detail || detail; } catch (e) {}
+                    alert(`Pump ${action} failed: ${detail}`);
+                    return;
+                }
+                const data = await response.json();
+                updatePumpCycle(data);
+            } catch (error) {
+                alert('Pump control failed: ' + error.message);
+            }
+        }
+
+        async function pumpResumeAuto() {
+            try {
+                const response = await fetch('/api/pump/auto', { method: 'POST' });
+                const data = await response.json();
+                updatePumpCycle(data);
+            } catch (error) {
+                alert('Resume auto failed: ' + error.message);
+            }
+        }
+
+        async function reconnectLight() {
+            try {
+                const response = await fetch('/api/light/reconnect', { method: 'POST' });
+                const data = await response.json();
+                alert(data.success ? 'Light controller reconnected.' : `Reconnect failed: state=${data.state}`);
+                refreshNow();
+            } catch (error) {
+                alert('Reconnect call failed: ' + error.message);
             }
         }
 

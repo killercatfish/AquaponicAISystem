@@ -8,6 +8,14 @@ Serial protocol (115200 baud):
     SET:75\\n       -> OK:BRIGHTNESS:75
     GET\\n          -> BRIGHTNESS:75
     FADE:100:30\\n  -> OK:FADING_TO:100:OVER:30s
+
+Connection states:
+    "connected"     — serial port open, controller responsive
+    "disconnected"  — port couldn't be opened (no hardware, wrong path, etc.)
+    "mock"          — pyserial isn't installed at all (dev environment)
+
+Read/write methods return None or False when not connected so callers can
+surface the truth instead of pretending success.
 """
 
 import logging
@@ -27,49 +35,80 @@ except ImportError:
 class LightController:
     """Serial interface to the ESP32 PWM dimmer driving the HLG-320H-48B."""
 
-    def __init__(self, port: str = '/dev/ttyUSB0', baud: int = 115200):
+    def __init__(self, port: str = '/dev/ttyUSB0', baud: int = 115200, port_fallback: Optional[str] = None):
         self.port = port
+        self.port_fallback = port_fallback
         self.baud = baud
         self.ser = None
-        self.mock_mode = serial is None
         self._lock = threading.Lock()
         self._last_known_brightness: Optional[int] = None
+        # State: "connected" | "disconnected" | "mock"
+        self.state = "mock" if serial is None else "disconnected"
 
-    def initialize(self):
-        """Open serial port and read the firmware boot banner."""
-        if self.mock_mode:
-            logger.warning("Light controller in MOCK MODE (pyserial unavailable)")
-            self._last_known_brightness = 100
-            return
+    @property
+    def is_connected(self) -> bool:
+        return self.state == "connected"
 
+    def _try_open(self, port: str) -> bool:
         try:
             s = serial.Serial()
-            s.port = self.port
+            s.port = port
             s.baudrate = self.baud
             s.timeout = 0.3
             s.dsrdtr = False
             s.rtscts = False
             s.open()
-            # Opening pulses DTR which resets the ESP32. Park DTR/RTS low so the
-            # chip stays out of reset; otherwise the firmware never starts.
+            # Park DTR/RTS low — opening pulses DTR which resets the ESP32, but
+            # leaving RTS high holds EN low (chip stuck in reset).
             s.dtr = False
             s.rts = False
             time.sleep(0.5)
             s.reset_input_buffer()
 
-            # Drain boot banner so the first user command isn't shadowed by it.
             banner = s.read(512).decode('utf-8', errors='replace').strip()
             if banner:
-                logger.info(f"ESP32 light controller: {banner.splitlines()[0]}")
+                logger.info(f"ESP32 light controller @ {port}: {banner.splitlines()[0]}")
 
             self.ser = s
-            # Firmware sets brightness to 100 on boot.
             self._last_known_brightness = 100
-            logger.info(f"Light controller initialized on {self.port}")
+            self.state = "connected"
+            logger.info(f"Light controller connected on {port}")
+            return True
         except Exception as e:
-            logger.error(f"Could not open light controller on {self.port}: {e}")
-            self.mock_mode = True
-            self._last_known_brightness = 100
+            logger.warning(f"Could not open light controller on {port}: {e}")
+            return False
+
+    def initialize(self):
+        """Open serial port, trying fallback if primary path is missing."""
+        if serial is None:
+            logger.warning("Light controller in MOCK MODE (pyserial unavailable)")
+            return
+
+        if self._try_open(self.port):
+            return
+        if self.port_fallback and self.port_fallback != self.port:
+            logger.info(f"Trying fallback port {self.port_fallback}")
+            if self._try_open(self.port_fallback):
+                return
+
+        logger.error(
+            f"Light controller could not be opened on {self.port}"
+            + (f" or {self.port_fallback}" if self.port_fallback else "")
+        )
+        self.state = "disconnected"
+
+    def reconnect(self) -> bool:
+        """Close any open port and try to open again. Returns True if connected."""
+        with self._lock:
+            if self.ser is not None:
+                try:
+                    self.ser.close()
+                except Exception:
+                    pass
+                self.ser = None
+            self.state = "mock" if serial is None else "disconnected"
+            self.initialize()
+            return self.is_connected
 
     def _send(self, command: str, read_bytes: int = 256) -> str:
         """Send a command and return the response. Caller must hold the lock."""
@@ -78,13 +117,22 @@ class LightController:
         time.sleep(0.15)
         return self.ser.read(read_bytes).decode('utf-8', errors='replace').strip()
 
+    def _mark_disconnected(self, e: Exception):
+        logger.error(f"Light controller serial error, marking disconnected: {e}")
+        self.state = "disconnected"
+        if self.ser is not None:
+            try:
+                self.ser.close()
+            except Exception:
+                pass
+            self.ser = None
+
     def set_brightness(self, pct: int) -> bool:
-        """Set brightness 0-100%. Returns True on success."""
+        """Set brightness 0-100%. Returns True only if a real serial write succeeded."""
         pct = max(0, min(100, int(pct)))
-        if self.mock_mode:
-            self._last_known_brightness = pct
-            logger.info(f"Mock light: SET:{pct}")
-            return True
+        if not self.is_connected:
+            logger.warning(f"set_brightness({pct}) ignored — controller {self.state}")
+            return False
 
         with self._lock:
             try:
@@ -95,18 +143,18 @@ class LightController:
                 logger.warning(f"Unexpected SET response: {resp!r}")
                 return False
             except Exception as e:
-                logger.error(f"Error setting brightness: {e}")
+                self._mark_disconnected(e)
                 return False
 
     def get_brightness(self) -> Optional[int]:
-        """Read current brightness from the firmware."""
-        if self.mock_mode:
-            return self._last_known_brightness
+        """Read current brightness. Returns None if not connected."""
+        if not self.is_connected:
+            return None
 
         with self._lock:
             try:
                 resp = self._send("GET")
-                # Last line because a stale fade-progress line could be ahead of it.
+                # Last matching line — fade progress can sit ahead in the buffer.
                 for line in reversed(resp.splitlines()):
                     if line.startswith("BRIGHTNESS:"):
                         value = int(line.split(":", 1)[1])
@@ -115,29 +163,27 @@ class LightController:
                 logger.warning(f"Unexpected GET response: {resp!r}")
                 return self._last_known_brightness
             except Exception as e:
-                logger.error(f"Error reading brightness: {e}")
-                return self._last_known_brightness
+                self._mark_disconnected(e)
+                return None
 
     def fade_to(self, pct: int, seconds: int) -> bool:
-        """Fade to brightness over the given duration. Non-blocking on the firmware side."""
+        """Fade to brightness over duration. Returns True only if firmware acked."""
         pct = max(0, min(100, int(pct)))
         seconds = max(0, int(seconds))
-        if self.mock_mode:
-            self._last_known_brightness = pct
-            logger.info(f"Mock light: FADE:{pct}:{seconds}")
-            return True
+        if not self.is_connected:
+            logger.warning(f"fade_to({pct},{seconds}) ignored — controller {self.state}")
+            return False
 
         with self._lock:
             try:
                 resp = self._send(f"FADE:{pct}:{seconds}")
                 if resp.startswith("OK:FADING_TO:"):
-                    # Optimistic — firmware confirms the fade started, will end at pct.
                     self._last_known_brightness = pct
                     return True
                 logger.warning(f"Unexpected FADE response: {resp!r}")
                 return False
             except Exception as e:
-                logger.error(f"Error starting fade: {e}")
+                self._mark_disconnected(e)
                 return False
 
     def cleanup(self):
