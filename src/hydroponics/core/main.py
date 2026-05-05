@@ -278,7 +278,8 @@ async def get_status():
             "do": atlas_sensors.read_do(),
             "temp_reservoir": None,
             "temp_fish_tank": None,
-            "water_level_percent": water_level.read_level().get("percent", 0.0) if water_level else 0.0
+            "water_level_percent": water_level.read_level().get("percent", 0.0) if water_level else 0.0,
+            "brightness": light_controller.get_brightness()
         }
         
         # Read temperature sensors

@@ -249,6 +249,53 @@
         .icon-robot::before { content: "🤖 "; }
         .icon-camera::before { content: "📷 "; }
         .icon-refresh::before { content: "🔄 "; }
+        .icon-light::before { content: "💡 "; }
+
+        .light-presets {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .light-preset-btn {
+            flex: 1;
+            min-width: 50px;
+            padding: 8px 0;
+            border: 1px solid #ddd;
+            background: #f9f9f9;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .light-preset-btn:hover {
+            background: #eef;
+            border-color: #667eea;
+        }
+
+        .light-preset-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .light-fade-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .light-fade-buttons .btn {
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .btn-sunrise { background: #ff9800; color: white; }
+        .btn-sunrise:hover { background: #f57c00; }
+        .btn-sunset { background: #5e35b1; color: white; }
+        .btn-sunset:hover { background: #4527a0; }
         /* AKBS Knowledge Integration Styles */
         .info-btn {
             background: #4CAF50;
@@ -434,8 +481,28 @@
                     <div class="toggle-switch" id="relay-backup_aerator" onclick="toggleRelay('backup_aerator')"></div>
                 </div>
             </div>
+
+            <!-- Light Control (HLG PWM dimmer via ESP32) -->
+            <div class="card">
+                <h2><span class="icon-light"></span>Light Control</h2>
+                <div class="sensor-reading">
+                    <span class="sensor-label">Brightness</span>
+                    <span class="sensor-value" id="brightness-value">--</span>
+                </div>
+                <div class="light-presets" id="light-presets">
+                    <button class="light-preset-btn" data-pct="0" onclick="setLightBrightness(0)">0%</button>
+                    <button class="light-preset-btn" data-pct="25" onclick="setLightBrightness(25)">25%</button>
+                    <button class="light-preset-btn" data-pct="50" onclick="setLightBrightness(50)">50%</button>
+                    <button class="light-preset-btn" data-pct="75" onclick="setLightBrightness(75)">75%</button>
+                    <button class="light-preset-btn" data-pct="100" onclick="setLightBrightness(100)">100%</button>
+                </div>
+                <div class="light-fade-buttons">
+                    <button class="btn btn-sunrise" onclick="lightFade(100, 1800, 'sunrise')">🌅 Sunrise Now</button>
+                    <button class="btn btn-sunset" onclick="lightFade(0, 1800, 'sunset')">🌇 Sunset Now</button>
+                </div>
+            </div>
         </div>
-        
+
         <!-- System Analysis Button -->
         <div style="text-align: center; margin: 20px 0;">
             <button class="system-analysis-btn" onclick="showSystemAnalysis()">
@@ -574,6 +641,7 @@
             updateSensorValue('temp-res-value', sensors.temp_reservoir, 18.0, 22.0, 16.0, 24.0, '°C');
             updateSensorValue('temp-fish-value', sensors.temp_fish_tank, 12.0, 15.0, 10.0, 18.0, '°C');
             updateSensorValue('water-level-value', sensors.water_level_percent, 50.0, 90.0, 30.0, 100.0, '%');
+            updateBrightness(sensors.brightness);
             
             // Update relay states
             for (const [relay, state] of Object.entries(relays)) {
@@ -652,6 +720,47 @@
             }
         }
         
+        function updateBrightness(value) {
+            const element = document.getElementById('brightness-value');
+            if (!element) return;
+            if (value === null || value === undefined) {
+                element.textContent = '--';
+            } else {
+                element.textContent = Math.round(value) + '%';
+            }
+            // Highlight the matching preset button
+            document.querySelectorAll('.light-preset-btn').forEach(btn => {
+                btn.classList.toggle('active', value !== null && value !== undefined && parseInt(btn.dataset.pct) === Math.round(value));
+            });
+        }
+
+        async function setLightBrightness(pct) {
+            try {
+                const response = await fetch(`/api/light/set/${pct}`, { method: 'POST' });
+                const data = await response.json();
+                if (data.success) {
+                    updateBrightness(data.brightness);
+                }
+            } catch (error) {
+                console.error('Error setting brightness:', error);
+                alert('Failed to set brightness');
+            }
+        }
+
+        async function lightFade(pct, seconds, label) {
+            try {
+                const response = await fetch(`/api/light/fade/${pct}/${seconds}`, { method: 'POST' });
+                const data = await response.json();
+                if (data.success) {
+                    const minutes = Math.round(seconds / 60);
+                    alert(`${label === 'sunrise' ? '🌅 Sunrise' : '🌇 Sunset'} started — ramping to ${pct}% over ${minutes} minutes.`);
+                }
+            } catch (error) {
+                console.error('Error starting fade:', error);
+                alert('Failed to start fade');
+            }
+        }
+
         async function toggleRelay(relayName) {
             const element = document.getElementById(`relay-${relayName}`);
             const currentState = element.classList.contains('active');
