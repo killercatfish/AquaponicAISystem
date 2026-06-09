@@ -78,3 +78,6 @@ Desktop.ini
 data/logs/*.log
 !data/logs/.gitkeep
 papers/
+
+# Private ops/context docs — canonical in josh-roadmap (private), never here
+aquapi_brain_state.md
